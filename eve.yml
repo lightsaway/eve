@@ -29,6 +29,9 @@
   - name: Create dev dir
     file: path={{devDir}} state=directory
 
+  - name: Copy bash profile
+    copy: src={{sourceFile}} dest={{sourceFile}}.backup
+
   - name: Create bash profile
     file: path={{sourceFile}} state=touch
 
@@ -86,7 +89,7 @@
       curl -L {{scalaUrl}} > {{tmpDir}}/scala.tar
       tar -x -f {{tmpDir}}/scala.tar -C {{devDir}}/
 
-  - name: Source Liquibase
+  - name: Source Scala
     lineinfile: 
       dest: "{{sourceFile}}"
       insertafter: EOF
