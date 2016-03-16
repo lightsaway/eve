@@ -1,0 +1,157 @@
+- name: Self Configuration
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  max_fail_percentage: 0
+
+  vars:
+    mavenUrl: https://archive.apache.org/dist/maven/maven-3/3.1.0/binaries/apache-maven-3.1.0-bin.zip
+    gradleUrl: https://services.gradle.org/distributions/gradle-2.12-bin.zip
+    liquibaseUrl: https://github.com/liquibase/liquibase/releases/download/liquibase-parent-3.4.2/liquibase-3.4.2-bin.zip
+    s3cmdUrl: https://github.com/s3tools/s3cmd/archive/master.zip
+    scalaUrl: http://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.tgz
+    cassandraUrl: http://apache.ip-connect.vn.ua/cassandra/3.4/apache-cassandra-3.4-bin.tar.gz
+    datastaxUrl: http://downloads.datastax.com/community/dsc.tar.gz
+    tmpDir: ~/.install
+    devDir: ~/.dev
+    sourceFile: ~/.bash_profile
+    dockerMachineName: dev
+    npmRegistry: http://npm-cxp.backbase.dev:4873
+
+##########################################
+# installation of things YOU will need
+##########################################
+
+  tasks:
+  - name: Create tmp install dir
+    file: path={{tmpDir}} state=directory
+
+  - name: Create dev dir
+    file: path={{devDir}} state=directory
+
+  - name: Create bash profile
+    file: path={{sourceFile}} state=touch
+
+  - name: Clean bash profile
+    shell: "echo '' > {{sourceFile}}"
+
+  - name: Download Maven
+    shell: |
+      curl -L {{mavenUrl}} > {{tmpDir}}/maven.zip
+      unzip -o {{tmpDir}}/maven.zip -d {{devDir}}/maven
+
+  - name: Source M2
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== MAVEN =============
+        export M2_HOME={{devDir}}/maven
+        export M2=$M2_HOME/bin
+        export PATH=$PATH:M2
+        #==============================
+
+  - name: Download Install Gradle
+    shell: |
+      curl -L {{gradleUrl}} > {{tmpDir}}/gradle.zip 
+      unzip -o {{tmpDir}}/maven.zip -d {{devDir}}/gradle
+
+  - name: Source Gradle
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== GRADLE =============
+        export GRADLE_HOME={{devDir}}/gradle
+        export PATH=$PATH:GRADLE_HOME/bin
+        #==============================
+
+  - name: Download Install Liquibase
+    shell: |
+      curl -L {{liquibaseUrl}} > {{tmpDir}}/liquibase.zip
+      unzip -o {{tmpDir}}/liquibase.zip -d {{devDir}}/liquibase
+
+  - name: Source Liquibase
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== LIQUIBASE =============
+        export LIQUIBASE_HOME={{devDir}}/liquibase
+        export PATH=$PATH:LIQUIBASE_HOME/
+        #==============================
+
+  - name: Download Install Scala
+    shell: |
+      curl -L {{scalaUrl}} > {{tmpDir}}/scala.tar
+      tar -x -f {{tmpDir}}/scala.tar -C {{devDir}}/
+
+  - name: Source Liquibase
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== SCALA =============
+        export SCALA_HOME={{devDir}}/scala-2.11.8
+        export PATH=$PATH:SCALA_HOME/bin
+        #==============================
+
+  - name: Download Cassandra
+    shell: |
+      curl -OL {{cassandraUrl}} > {{tmpDir}}/cassandra.tar
+      tar -xf {{tmpDir}}/cassandra.tar -C {{devDir}}/
+
+  - name: Source Cassandra
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== CASSANDRA =============
+        export CASSANDRA_HOME={{devDir}}/apache-cassandra-3.4
+        export PATH=$PATH:CASSANDRA_HOME/bin
+        #==============================
+
+  - name: Install docker toolbox
+    shell: |
+      if hash docker 2>/dev/null; then
+        echo "docker is present ... proceeding ..."
+      else
+        # Install Cask
+        brew install caskroom/cask/brew-cask
+        # Install docker toolbox
+        brew cask install dockertoolbox
+      fi
+
+  - name: Create docker machine
+    shell: |
+      docker-machine create --driver "virtualbox" {{dockerMachineName}}
+      docker-machine start {{dockerMachineName}}
+      eval "$(docker-machine env {{dockerMachineName}})"
+
+  - name: Source docker-machine
+    lineinfile: 
+      dest: "{{sourceFile}}"
+      insertafter: EOF
+      line: |
+        #========== DOCKER =============
+        eval "$(docker-machine env {{dockerMachineName}})"
+        #==============================
+
+  - name: Install nodejs
+    shell: |
+      if hash node 2>/dev/null; then
+        echo "node is present ... proceeding ..."
+      else
+        # Install docker toolbox
+        brew install node
+      fi
+
+  - name: Congigure npm registry
+    shell: |
+      npm set registry {{npmRegistry}}
+
+  - name: Install s3cmd
+    shell: |
+      curl -L {{s3cmdUrl}} > {{tmpDir}}/s3cmd.zip
+      unzip -o {{tmpDir}}/s3cmd.zip -d {{devDir}}/s3cmd
+
